@@ -1,0 +1,19 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: gp3
+  annotations:
+    # Set as the default StorageClass for the cluster
+    storageclass.kubernetes.io/is-default-class: "true"
+provisioner: ebs.csi.aws.com
+# WaitForFirstConsumer: EBS volume is provisioned in the same AZ as the scheduled pod
+volumeBindingMode: WaitForFirstConsumer
+# Retain: PV is kept when PVC is deleted - prevents accidental data loss
+reclaimPolicy: Retain
+allowVolumeExpansion: true
+parameters:
+  type: gp3
+  fsType: ext4
+  throughput: "125"   # MiB/s - gp3 baseline (max 1000)
+  iops: "3000"        # IOPS - gp3 baseline (max 16000)
+  encrypted: "true"   # Encrypt EBS volumes at rest using AWS KMS

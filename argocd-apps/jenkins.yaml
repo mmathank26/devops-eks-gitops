@@ -1,0 +1,39 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: jenkins
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  labels:
+    app.kubernetes.io/name: jenkins
+    app.kubernetes.io/part-of: gitops-platform
+    app.kubernetes.io/component: cicd
+  annotations:
+    # Deploy after ingress-nginx and storage are confirmed ready
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  project: default
+
+  sources:
+    - repoURL: https://charts.jenkins.io
+      chart: jenkins
+      targetRevision: 5.3.3
+      helm:
+        valueFiles:
+          - $values/applications/jenkins/values.yaml
+    - repoURL: https://github.com/mmathank26/devops-eks-gitops
+      targetRevision: HEAD
+      ref: values
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: jenkins
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

@@ -1,0 +1,115 @@
+# ArgoCD Helm Values
+# Chart: argo/argo-cd v7.3.11 (ArgoCD v2.10.x)
+# Bootstrap installation - applied once manually via install.sh
+# All other platform components are GitOps-managed after this
+
+global:
+  image:
+    tag: "v2.10.5"
+
+# -------------------------------------------------------
+# Server
+# -------------------------------------------------------
+server:
+  replicas: 1
+
+  # ArgoCD runs in --insecure mode
+  # TLS is terminated at the AWS NLB / ingress-nginx layer
+  # Access via: http://argocd.meghalmathankar.com
+  extraArgs:
+    - --insecure
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+  # Ingress is applied separately via argocd-ingress.yaml
+  # after ingress-nginx NLB is provisioned
+  ingress:
+    enabled: false
+
+# -------------------------------------------------------
+# Application Controller
+# -------------------------------------------------------
+controller:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# -------------------------------------------------------
+# Repo Server
+# -------------------------------------------------------
+repoServer:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+# -------------------------------------------------------
+# ApplicationSet Controller
+# -------------------------------------------------------
+applicationSet:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+# -------------------------------------------------------
+# Redis
+# -------------------------------------------------------
+redis:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+# -------------------------------------------------------
+# Dex (SSO - disabled for now)
+# -------------------------------------------------------
+dex:
+  enabled: false
+
+# -------------------------------------------------------
+# ArgoCD Config
+# -------------------------------------------------------
+configs:
+  params:
+    # Required: ArgoCD server runs without TLS (ingress handles it)
+    server.insecure: true
+
+  cm:
+    application.resourceTrackingMethod: annotation
+
+    # GitOps repository - update with your GitHub org
+    repositories: |
+      - url: https://github.com/mmathank26/devops-eks-gitops
+        name: gitops-repo
+        type: git
+
+  rbac:
+    policy.default: role:readonly
+    policy.csv: |
+      p, role:admin, applications, *, */*, allow
+      p, role:admin, clusters, get, *, allow
+      p, role:admin, repositories, *, *, allow
+      g, argocd-admins, role:admin

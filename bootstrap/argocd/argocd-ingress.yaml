@@ -1,0 +1,47 @@
+# ArgoCD Ingress
+# =============================================================
+# Applied AFTER ingress-nginx is Running and NLB is provisioned.
+#
+# Traffic flow:
+#   Browser --> DNS CNAME --> AWS NLB --> ingress-nginx --> argocd-server
+#
+# Prerequisites:
+#   1. ingress-nginx deployed and NLB EXTERNAL-IP assigned
+#   2. DNS CNAME: argocd.meghalmathankar.com --> <NLB_HOSTNAME>
+#
+# Apply with:
+#   kubectl apply -f argocd-ingress.yaml
+# =============================================================
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd-server-ingress
+  namespace: argocd
+  annotations:
+    kubernetes.io/ingress.class: nginx
+
+    # ArgoCD runs --insecure; TLS terminated at NLB/ingress level
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
+
+    # Required for ArgoCD gRPC (argocd CLI login through ingress)
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+
+    # Increased timeouts for long-running sync operations
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: argocd.meghalmathankar.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: argocd-server
+                port:
+                  number: 80
