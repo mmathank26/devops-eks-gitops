@@ -1,19 +1,12 @@
 # Jenkins Helm Values
 # Chart: jenkins/jenkins v5.3.3
 # Accessed via: http://jenkins.meghalmathankar.com
-# Traffic flow: Browser --> DNS --> AWS NLB --> ingress-nginx --> Jenkins
-# Dynamic agents provisioned as Kubernetes pods in the jenkins namespace
+# Minimal plugin set - add more via Jenkins UI as needed
 
 controller:
-  # -------------------------------------------------------
-  # Image
-  # -------------------------------------------------------
   image:
-    tag: "2.462.1-lts"
+    tag: "2.504.1-lts"
 
-  # -------------------------------------------------------
-  # Resources - sized for t3.large nodes
-  # -------------------------------------------------------
   resources:
     requests:
       cpu: 500m
@@ -26,51 +19,34 @@ controller:
     -Xms512m
     -Xmx1536m
     -XX:+UseG1GC
-    -XX:+ExplicitGCInvokesConcurrent
     -Djava.awt.headless=true
 
-  # -------------------------------------------------------
-  # Jenkins URL
-  # -------------------------------------------------------
   jenkinsUrl: "http://jenkins.meghalmathankar.com"
   jenkinsAdminEmail: "admin@example.com"
 
-  # -------------------------------------------------------
-  # Admin credentials
-  # IMPORTANT: Replace with External Secrets in production
-  # -------------------------------------------------------
   admin:
     username: "admin"
     password: "changeme"
 
   # -------------------------------------------------------
-  # Plugins
+  # Minimal plugins - only what's needed to run
+  # Add more via Jenkins UI: Manage Jenkins > Plugins
   # -------------------------------------------------------
   installPlugins:
-    - kubernetes:4203.v1dd44f5b_1cf9
-    - workflow-aggregator:596.v8c21c963d92d
-    - git:5.2.2
-    - configuration-as-code:1810.v9b_c30a_249a_4c
-    - blueocean:1.27.14
-    - docker-workflow:572.v950f58993843
-    - pipeline-stage-view:2.34
-    - github:1.38.0
-    - github-branch-source:1787.v8b_8cd49a_f8f1
-    - credentials-binding:677.vd09b_e56b_a_144
-    - sonar:2.17.2
-    - prometheus:2.3.1   # Exposes Jenkins metrics for Prometheus scraping
-    - matrix-auth:3.2.2
+    - kubernetes:latest
+    - workflow-aggregator:latest
+    - git:latest
+    - configuration-as-code:latest
+    - credentials:latest
 
   additionalPlugins: []
 
   # -------------------------------------------------------
-  # Configuration as Code (JCasC)
+  # JCasC - Kubernetes dynamic agents only
   # -------------------------------------------------------
   JCasC:
     defaultConfig: true
     configScripts:
-
-      # Kubernetes cloud - dynamic agent provisioning
       kubernetes-cloud: |
         jenkins:
           clouds:
@@ -83,44 +59,15 @@ controller:
                 connectTimeout: 5
                 readTimeout: 15
                 containerCapStr: "10"
-                podLabels:
-                  - key: "jenkins/jenkins-jenkins-agent"
-                    value: "true"
-
-      # Global security
-      security-config: |
-        jenkins:
-          securityRealm:
-            local:
-              allowsSignup: false
-              users:
-                - id: "admin"
-                  name: "Administrator"
-          authorizationStrategy:
-            loggedInUsersCanDoAnything:
-              allowAnonymousRead: false
-
-      # Prometheus metrics
-      prometheus-config: |
-        unclassified:
-          prometheusConfiguration:
-            collectDiskUsage: true
-            countSuccessfulBuilds: true
-            countUnstableBuilds: true
-            countFailedBuilds: true
-            countNotBuiltBuilds: true
-            countAbortedBuilds: true
-            fetchTestResults: true
-            useAuthenticatedEndpoint: false
 
   # -------------------------------------------------------
-  # Ingress - exposed via ingress-nginx + AWS NLB
+  # Ingress
   # -------------------------------------------------------
   ingress:
     enabled: true
     ingressClassName: nginx
     annotations:
-      nginx.ingress.kubernetes.io/proxy-body-size: "0"      # Unlimited - needed for artifact uploads
+      nginx.ingress.kubernetes.io/proxy-body-size: "0"
       nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
       nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
     hostName: jenkins.meghalmathankar.com
@@ -128,29 +75,23 @@ controller:
       - path: /
         pathType: Prefix
 
-  # -------------------------------------------------------
-  # Prometheus ServiceMonitor
-  # -------------------------------------------------------
   prometheus:
-    enabled: true
-    serviceMonitorAdditionalLabels:
-      release: monitoring   # Must match Prometheus serviceMonitorSelector
-
-  # -------------------------------------------------------
-  # Persistent storage for Jenkins home
-  # -------------------------------------------------------
-  persistence:
-    enabled: true
-    storageClass: gp3
-    size: 20Gi
-    accessMode: ReadWriteOnce
+    enabled: false
 
 # -------------------------------------------------------
-# Dynamic Agent configuration
+# Persistent storage
+# -------------------------------------------------------
+persistence:
+  enabled: true
+  storageClass: gp3
+  size: 20Gi
+  accessMode: ReadWriteOnce
+
+# -------------------------------------------------------
+# Dynamic agents
 # -------------------------------------------------------
 agent:
   enabled: true
-
   resources:
     requests:
       cpu: 256m
@@ -158,17 +99,12 @@ agent:
     limits:
       cpu: 512m
       memory: 512Mi
-
   image:
     repository: "jenkins/inbound-agent"
-    tag: "3256.v88a_f6e922152-1"
-
+    tag: "latest"
   workspaceVolume:
     type: EmptyDir
 
-# -------------------------------------------------------
-# RBAC - Jenkins needs pod management for dynamic agents
-# -------------------------------------------------------
 rbac:
   create: true
   readSecrets: false
@@ -176,11 +112,3 @@ rbac:
 serviceAccount:
   create: true
   name: jenkins
-
-# -------------------------------------------------------
-# Backup (disabled - enable and point to S3 for production)
-# -------------------------------------------------------
-backup:
-  enabled: false
-  # schedule: "0 2 * * *"
-  # destination: s3://<YOUR_BUCKET>/jenkins-backups

@@ -1,0 +1,201 @@
+# kube-prometheus-stack Helm Values - Lean Production Setup
+# Chart: prometheus-community/kube-prometheus-stack v61.7.1
+# Optimized for t3.large nodes with ENI pod limits
+# Only Prometheus + Grafana enabled - minimal pod footprint
+
+fullnameOverride: monitoring
+
+# -------------------------------------------------------
+# Prometheus Operator
+# -------------------------------------------------------
+prometheusOperator:
+  enabled: true
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+# -------------------------------------------------------
+# Prometheus
+# -------------------------------------------------------
+prometheus:
+  enabled: true
+
+  prometheusSpec:
+    replicas: 1
+    retention: 15d
+    retentionSize: "8GB"
+
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        cpu: 500m
+        memory: 1Gi
+
+    # gp3 persistent storage
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: gp3
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 10Gi
+
+    # Auto-discover ServiceMonitors across all namespaces
+    serviceMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorSelector: {}
+    serviceMonitorNamespaceSelector: {}
+    podMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelector: {}
+    podMonitorNamespaceSelector: {}
+
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    hosts:
+      - prometheus.meghalmathankar.com
+    paths:
+      - /
+    pathType: Prefix
+
+# -------------------------------------------------------
+# Grafana
+# -------------------------------------------------------
+grafana:
+  enabled: true
+  replicas: 1
+
+  adminUser: admin
+  adminPassword: "changeme"
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+  persistence:
+    enabled: true
+    storageClassName: gp3
+    size: 5Gi
+    accessModes:
+      - ReadWriteOnce
+
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    hosts:
+      - grafana.meghalmathankar.com
+    path: /
+    pathType: Prefix
+
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+        - name: Prometheus
+          type: prometheus
+          url: http://monitoring-prometheus:9090
+          isDefault: true
+          access: proxy
+
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: default
+          orgId: 1
+          folder: ""
+          type: file
+          disableDeletion: false
+          editable: true
+          options:
+            path: /var/lib/grafana/dashboards/default
+
+  dashboards:
+    default:
+      kubernetes-cluster:
+        gnetId: 7249
+        revision: 1
+        datasource: Prometheus
+      node-exporter:
+        gnetId: 1860
+        revision: 37
+        datasource: Prometheus
+
+  grafana.ini:
+    server:
+      root_url: "%(protocol)s://%(domain)s/"
+    security:
+      allow_embedding: true
+
+# -------------------------------------------------------
+# Disabled components - reduces pod count significantly
+# -------------------------------------------------------
+alertmanager:
+  enabled: false
+
+nodeExporter:
+  enabled: false
+
+prometheus-node-exporter:
+  enabled: false
+
+kubeStateMetrics:
+  enabled: false
+
+kube-state-metrics:
+  enabled: false
+
+# -------------------------------------------------------
+# EKS managed - disable unreachable control plane targets
+# -------------------------------------------------------
+kubeEtcd:
+  enabled: false
+
+kubeControllerManager:
+  enabled: false
+
+kubeScheduler:
+  enabled: false
+
+kubeProxy:
+  enabled: false
+
+defaultRules:
+  create: true
+  rules:
+    alertmanager: false
+    etcd: false
+    configReloaders: true
+    general: true
+    k8s: true
+    kubeApiserverAvailability: true
+    kubeApiserverBurnrate: true
+    kubeApiserverHistogram: true
+    kubeApiserverSlos: true
+    kubelet: true
+    kubeProxy: false
+    kubePrometheusGeneral: true
+    kubePrometheusNodeRecording: true
+    kubernetesApps: true
+    kubernetesResources: true
+    kubernetesStorage: true
+    kubernetesSystem: true
+    kubeScheduler: false
+    kubeStateMetrics: false
+    network: true
+    node: false
+    nodeExporterAlerting: false
+    nodeExporterRecording: false
+    prometheus: true
+    prometheusOperator: true

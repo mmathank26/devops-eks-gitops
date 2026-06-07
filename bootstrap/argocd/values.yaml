@@ -73,8 +73,12 @@ applicationSet:
 
 # -------------------------------------------------------
 # Redis
+# Production-grade: password stored in manually created
+# Kubernetes secret using: openssl rand -base64 32
+# existingSecret prevents Helm from overwriting on upgrades
 # -------------------------------------------------------
 redis:
+  enabled: true
   resources:
     requests:
       cpu: 100m
@@ -97,10 +101,15 @@ configs:
     # Required: ArgoCD server runs without TLS (ingress handles it)
     server.insecure: true
 
+  # Redis secret - references the manually created argocd-redis secret
+  # Helm will NOT regenerate or overwrite this on upgrades
+  secret:
+    existingSecret: "argocd-redis"
+
   cm:
     application.resourceTrackingMethod: annotation
 
-    # GitOps repository - update with your GitHub org
+    # GitOps repository
     repositories: |
       - url: https://github.com/mmathank26/devops-eks-gitops
         name: gitops-repo

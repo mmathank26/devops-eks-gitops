@@ -58,6 +58,22 @@ GitHub (Source of Truth)
         |--- [wave 3] jenkins        --> Jenkins CI/CD
 ```
 
+
+### Create Sceret for Redis
+
+Generate a strong random password
+
+```
+REDIS_PASSWORD=$(openssl rand -base64 32)
+```
+
+Create the secret with the password :
+```
+kubectl create secret generic argocd-redis \
+  --namespace argocd \
+  --from-literal=auth="$REDIS_PASSWORD"
+```
+
 ### Traffic Flow
 
 ```

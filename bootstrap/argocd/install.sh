@@ -23,12 +23,12 @@ ARGOCD_VERSION="7.3.11"   # Helm chart version (ArgoCD v2.10.x)
 GITOPS_REPO="https://github.com/mmathank26/devops-eks-gitops"
 ARGOCD_NAMESPACE="argocd"
 
-echo "==> [1/6] Verifying kubectl context..."
-kubectl config current-context
-echo ""
-read -p "Is this the correct cluster? (y/n): " confirm
-[[ "$confirm" == "y" ]] || { echo "Aborted."; exit 1; }
-echo ""
+# echo "==> [1/6] Verifying kubectl context..."
+# kubectl config current-context
+# echo ""
+# read -p "Is this the correct cluster? (y/n): " confirm
+# [[ "$confirm" == "y" ]] || { echo "Aborted."; exit 1; }
+# echo ""
 
 echo "==> [2/6] Applying gp3 StorageClass..."
 kubectl apply -f ../../infrastructure/storage/gp3-storageclass.yaml
